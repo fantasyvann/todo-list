@@ -1,10 +1,636 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <title>test</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>四象限 Todo（工作/生活）</title>
+  <style>
+    :root{
+      --bg:#0b1020;
+      --card:#121a33;
+      --muted:#a9b3d1;
+      --text:#eaf0ff;
+      --line:rgba(255,255,255,.10);
+      --accent:#7aa2ff;
+      --good:#49d17f;
+      --warn:#ffcf5a;
+      --bad:#ff6b6b;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:radial-gradient(1200px 700px at 20% 0%, #16204a 0%, var(--bg) 55%);color:var(--text)}
+    header{padding:18px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(11,16,32,.82);backdrop-filter: blur(10px);z-index:10}
+    .wrap{max-width:1100px;margin:0 auto}
+    h1{font-size:18px;margin:0 0 10px 0}
+    .bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .bar > *{flex:0 0 auto}
+    input, select, button, textarea{background:rgba(255,255,255,.06);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:10px 12px;font-size:14px;outline:none}
+    textarea{resize:vertical;min-height:74px}
+    input::placeholder, textarea::placeholder{color:rgba(234,240,255,.45)}
+    button{cursor:pointer}
+    button.primary{background:linear-gradient(135deg, rgba(122,162,255,.95), rgba(93,132,255,.85));border:none}
+    button.ghost{background:transparent}
+    button.danger{border-color:rgba(255,107,107,.35);color:#ffdede}
+    button:disabled{opacity:.45;cursor:not-allowed}
+
+    main{padding:16px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    @media (max-width:900px){.grid{grid-template-columns:1fr}}
+
+    .panel{background:rgba(18,26,51,.80);border:1px solid var(--line);border-radius:16px;padding:14px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+    .panel h2{margin:0 0 10px 0;font-size:14px;color:rgba(234,240,255,.92);display:flex;align-items:center;justify-content:space-between;gap:8px}
+    .pill{font-size:12px;color:rgba(234,240,255,.75);border:1px solid var(--line);padding:4px 8px;border-radius:999px}
+
+    .form{display:grid;grid-template-columns: 1.3fr .7fr .7fr;gap:10px;align-items:start}
+    .form .wide{grid-column:1 / -1}
+    @media (max-width:900px){.form{grid-template-columns:1fr}.form .wide{grid-column:auto}}
+
+    .quad{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    @media (max-width:900px){.quad{grid-template-columns:1fr}}
+
+    .q{border:1px solid var(--line);border-radius:16px;overflow:hidden}
+    .q .qhead{padding:10px 12px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:10px}
+    .q .qhead .left{display:flex;align-items:center;gap:10px}
+    .dot{width:10px;height:10px;border-radius:50%}
+    .q1 .dot{background:var(--bad)}
+    .q2 .dot{background:var(--good)}
+    .q3 .dot{background:var(--warn)}
+    .q4 .dot{background:rgba(169,179,209,.7)}
+    .qtitle{font-size:13px}
+    .qsub{font-size:12px;color:rgba(234,240,255,.65)}
+
+    .list{min-height:80px;padding:10px;display:flex;flex-direction:column;gap:8px}
+    .item{display:flex;gap:10px;align-items:flex-start;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:10px}
+    .item.dragging{opacity:.55}
+    .item .meta{flex:1 1 auto}
+    .item .title{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .item .title strong{font-size:14px}
+    .tag{font-size:11px;color:rgba(234,240,255,.72);border:1px solid rgba(255,255,255,.12);padding:2px 6px;border-radius:999px}
+    .tag.work{border-color:rgba(122,162,255,.35);color:rgba(195,214,255,.95)}
+    .tag.life{border-color:rgba(73,209,127,.35);color:rgba(186,255,212,.95)}
+    .desc{margin-top:6px;font-size:12px;color:rgba(234,240,255,.70);white-space:pre-wrap}
+    .row{margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    .row button{padding:7px 10px;border-radius:10px;font-size:12px}
+    .row .spacer{flex:1 1 auto}
+
+    .done strong{text-decoration:line-through;opacity:.75}
+    .muted{color:rgba(234,240,255,.62)}
+
+    .footer{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+    .note{font-size:12px;color:rgba(234,240,255,.60);line-height:1.4}
+
+    .kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:11px;border:1px solid rgba(255,255,255,.16);padding:1px 6px;border-radius:8px;background:rgba(255,255,255,.05)}
+
+    dialog{border:1px solid var(--line);border-radius:16px;background:rgba(18,26,51,.96);color:var(--text);max-width:640px;width:calc(100% - 28px)}
+    dialog::backdrop{background:rgba(0,0,0,.55)}
+    .dlgHead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+    .dlgHead h3{margin:0;font-size:14px}
+    .dlgGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .dlgGrid .wide{grid-column:1/-1}
+    @media (max-width:700px){.dlgGrid{grid-template-columns:1fr}}
+  </style>
 </head>
 <body>
-  <h1>Hello GitHub Pages！！！</h1>
+  <header>
+    <div class="wrap">
+      <h1>四象限 Todo（按工作/生活）</h1>
+      <div class="bar">
+        <input id="search" type="text" placeholder="搜索：标题/描述" />
+        <select id="filterWL">
+          <option value="all">全部（工作+生活）</option>
+          <option value="work">工作</option>
+          <option value="life">生活</option>
+        </select>
+        <select id="filterDone">
+          <option value="all">全部（含已完成）</option>
+          <option value="open">仅未完成</option>
+          <option value="done">仅已完成</option>
+        </select>
+        <button class="primary" id="openAdd">+ 新增</button>
+        <button class="ghost" id="exportBtn">导出 JSON</button>
+        <button class="ghost" id="importBtn">导入 JSON</button>
+        <button class="danger" id="resetBtn" title="重置为你给过我的默认 Todo">重置默认</button>
+      </div>
+      <div class="note" style="margin-top:10px">
+        拖拽卡片可在同一象限内排序，或拖到其他象限改变分类。导出后把 JSON 发给我，我就能把你的最新 Todo 写进 memory。<br>
+        小技巧：<span class="kbd">/</span> 聚焦搜索；<span class="kbd">N</span> 新增。
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="wrap">
+      <div class="quad" id="quad"></div>
+
+      <div class="panel" style="margin-top:12px">
+        <h2>
+          <span>说明</span>
+          <span class="pill" id="stats">0 项</span>
+        </h2>
+        <div class="note">
+          四象限定义：Q1 重要且紧急；Q2 重要不紧急；Q3 紧急不重要；Q4 不重要不紧急。你可以把“每天30分钟运动/每周一次跳舞”等生活目标放在 Q2，保持长期推进。
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <dialog id="dlg">
+    <form method="dialog" id="dlgForm" style="padding:14px">
+      <div class="dlgHead">
+        <h3 id="dlgTitle">新增 Todo</h3>
+        <button class="ghost" value="cancel" type="submit">关闭</button>
+      </div>
+      <div class="dlgGrid">
+        <input class="wide" id="f_title" placeholder="标题（必填）" />
+        <textarea class="wide" id="f_desc" placeholder="描述（可选）"></textarea>
+        <select id="f_wl">
+          <option value="work">工作</option>
+          <option value="life">生活</option>
+        </select>
+        <select id="f_quad">
+          <option value="q1">Q1 重要且紧急</option>
+          <option value="q2">Q2 重要不紧急</option>
+          <option value="q3">Q3 紧急不重要</option>
+          <option value="q4">Q4 不重要不紧急</option>
+        </select>
+        <input id="f_due" type="date" />
+        <div class="wide" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:flex-end;margin-top:6px">
+          <button class="danger" id="deleteBtn" type="button" style="display:none">删除</button>
+          <button class="primary" id="saveBtn" type="button">保存</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <input type="file" id="fileInput" accept="application/json" style="display:none" />
+
+  <script>
+    // -------------------- Data Model --------------------
+    // item: { id, title, desc, wl: 'work'|'life', quad: 'q1'|'q2'|'q3'|'q4', due: 'YYYY-MM-DD'|'', done: bool, order: number }
+
+    const STORAGE_KEY = 'todo_quadrant_v1';
+
+    const DEFAULT_ITEMS = [
+      // 工作
+      { title: '搭建 Web 端 Todo 助理网页（可随时访问）', wl: 'work', quad: 'q1', desc: '把 Todo 记录与安排做成可用网页：增删改查 + 四象限 + 工作/生活筛选。', due: '', done: false },
+      { title: 'Todo 支持拖拽排序', wl: 'work', quad: 'q2', desc: '在完整列表中拖拽调整排序（已在网页里实现）。', due: '', done: false },
+
+      // 生活
+      { title: '每天最低 30 分钟运动', wl: 'life', quad: 'q2', desc: '长期目标：持续健身（可拆成每天的“今日运动”）。', due: '', done: false },
+      { title: '每周一次跳舞（傍晚）', wl: 'life', quad: 'q2', desc: '长期目标：每周至少 1 次。', due: '', done: false },
+      { title: '给猫买牙刷', wl: 'life', quad: 'q1', desc: '', due: '', done: false },
+      { title: '给猫买牙膏', wl: 'life', quad: 'q1', desc: '', due: '', done: false },
+      { title: '买猫砂盆', wl: 'life', quad: 'q1', desc: '', due: '', done: false },
+      { title: '买猫砂', wl: 'life', quad: 'q1', desc: '', due: '', done: false },
+      { title: '买沙袋', wl: 'life', quad: 'q3', desc: '', due: '', done: false },
+
+      // 成长/兴趣（先放生活）
+      { title: '视频剪辑学习（节后完成完整视频）', wl: 'life', quad: 'q2', desc: '你之前提过的学习方向（已删“作品提醒”，保留学习项）。', due: '', done: false },
+      { title: '学习 AI 工具结合创作', wl: 'life', quad: 'q2', desc: '', due: '', done: false },
+    ].map((x, idx) => ({
+      id: crypto.randomUUID(),
+      title: x.title,
+      desc: x.desc ?? '',
+      wl: x.wl,
+      quad: x.quad,
+      due: x.due ?? '',
+      done: !!x.done,
+      order: idx + 1,
+    }));
+
+    function loadItems(){
+      try{
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if(!raw) return structuredClone(DEFAULT_ITEMS);
+        const data = JSON.parse(raw);
+        if(!Array.isArray(data)) throw new Error('bad');
+        // Basic sanitize
+        return data
+          .filter(Boolean)
+          .map((it, idx) => ({
+            id: String(it.id ?? crypto.randomUUID()),
+            title: String(it.title ?? '').trim(),
+            desc: String(it.desc ?? ''),
+            wl: (it.wl === 'work' || it.wl === 'life') ? it.wl : 'life',
+            quad: ['q1','q2','q3','q4'].includes(it.quad) ? it.quad : 'q2',
+            due: (typeof it.due === 'string') ? it.due : '',
+            done: !!it.done,
+            order: Number.isFinite(+it.order) ? +it.order : (idx+1),
+          }))
+          .filter(it => it.title.length > 0);
+      } catch {
+        return structuredClone(DEFAULT_ITEMS);
+      }
+    }
+
+    function saveItems(){
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state.items));
+      render();
+    }
+
+    const state = {
+      items: loadItems(),
+      search: '',
+      filterWL: 'all',
+      filterDone: 'all',
+      editingId: null,
+      dragId: null,
+    };
+
+    // -------------------- UI Setup --------------------
+
+    const quadEl = document.getElementById('quad');
+    const statsEl = document.getElementById('stats');
+
+    const searchEl = document.getElementById('search');
+    const filterWLEl = document.getElementById('filterWL');
+    const filterDoneEl = document.getElementById('filterDone');
+
+    const dlg = document.getElementById('dlg');
+    const dlgTitle = document.getElementById('dlgTitle');
+    const f_title = document.getElementById('f_title');
+    const f_desc = document.getElementById('f_desc');
+    const f_wl = document.getElementById('f_wl');
+    const f_quad = document.getElementById('f_quad');
+    const f_due = document.getElementById('f_due');
+    const saveBtn = document.getElementById('saveBtn');
+    const deleteBtn = document.getElementById('deleteBtn');
+
+    const fileInput = document.getElementById('fileInput');
+
+    document.getElementById('openAdd').addEventListener('click', () => openDialogForNew());
+
+    searchEl.addEventListener('input', () => { state.search = searchEl.value.trim().toLowerCase(); render(); });
+    filterWLEl.addEventListener('change', () => { state.filterWL = filterWLEl.value; render(); });
+    filterDoneEl.addEventListener('change', () => { state.filterDone = filterDoneEl.value; render(); });
+
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      if(confirm('确定重置为默认 Todo 吗？你当前的修改会被覆盖。')){
+        state.items = structuredClone(DEFAULT_ITEMS);
+        saveItems();
+      }
+    });
+
+    document.getElementById('exportBtn').addEventListener('click', () => {
+      const payload = {
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        items: state.items,
+      };
+
+      const jsonStr = JSON.stringify(payload, null, 2);
+
+      try {
+        const blob = new Blob([jsonStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'todo-quadrant-export.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        // 延迟释放，避免某些浏览器无响应
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } catch (err) {
+        // 如果浏览器阻止下载，则弹窗展示 JSON 供手动复制
+        const win = window.open('', '_blank');
+        if (win) {
+          win.document.write('<pre style="white-space:pre-wrap;font-family:monospace">' +
+            jsonStr.replace(/</g, '&lt;') +
+            '</pre>');
+        } else {
+          alert('下载被浏览器阻止，请允许下载或联系我改为复制模式。');
+        }
+      }
+    });
+
+    document.getElementById('importBtn').addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if(!file) return;
+      try{
+        const text = await file.text();
+        const data = JSON.parse(text);
+        const items = Array.isArray(data) ? data : (Array.isArray(data.items) ? data.items : null);
+        if(!items) throw new Error('Invalid format');
+        state.items = items.map((it, idx) => ({
+          id: String(it.id ?? crypto.randomUUID()),
+          title: String(it.title ?? '').trim(),
+          desc: String(it.desc ?? ''),
+          wl: (it.wl === 'work' || it.wl === 'life') ? it.wl : 'life',
+          quad: ['q1','q2','q3','q4'].includes(it.quad) ? it.quad : 'q2',
+          due: (typeof it.due === 'string') ? it.due : '',
+          done: !!it.done,
+          order: Number.isFinite(+it.order) ? +it.order : (idx+1),
+        })).filter(it => it.title.length > 0);
+        saveItems();
+        alert('导入成功');
+      } catch(err){
+        alert('导入失败：' + (err?.message ?? String(err)));
+      } finally {
+        fileInput.value = '';
+      }
+    });
+
+    // Keyboard shortcuts
+    window.addEventListener('keydown', (e) => {
+      if(e.key === '/' && document.activeElement !== searchEl){
+        e.preventDefault();
+        searchEl.focus();
+      }
+      if((e.key === 'n' || e.key === 'N') && !dlg.open){
+        e.preventDefault();
+        openDialogForNew();
+      }
+    });
+
+    // -------------------- Helpers --------------------
+
+    const QUADS = [
+      { key:'q1', cls:'q1', title:'Q1 重要且紧急', sub:'先做（今天/最近）' },
+      { key:'q2', cls:'q2', title:'Q2 重要不紧急', sub:'规划推进（习惯/长期）' },
+      { key:'q3', cls:'q3', title:'Q3 紧急不重要', sub:'能委派就委派/简化' },
+      { key:'q4', cls:'q4', title:'Q4 不重要不紧急', sub:'减少/删除' },
+    ];
+
+    function matchesFilters(it){
+      if(state.filterWL !== 'all' && it.wl !== state.filterWL) return false;
+      if(state.filterDone === 'open' && it.done) return false;
+      if(state.filterDone === 'done' && !it.done) return false;
+      if(state.search){
+        const hay = (it.title + '\n' + (it.desc || '')).toLowerCase();
+        if(!hay.includes(state.search)) return false;
+      }
+      return true;
+    }
+
+    function sortWithinQuad(items){
+      return items.slice().sort((a,b) => (a.order - b.order) || (a.title.localeCompare(b.title)));
+    }
+
+    function openDialogForNew(){
+      state.editingId = null;
+      dlgTitle.textContent = '新增 Todo';
+      deleteBtn.style.display = 'none';
+      f_title.value = '';
+      f_desc.value = '';
+      f_wl.value = (state.filterWL === 'work' || state.filterWL === 'life') ? state.filterWL : 'life';
+      f_quad.value = 'q2';
+      f_due.value = '';
+      dlg.showModal();
+      setTimeout(() => f_title.focus(), 0);
+    }
+
+    function openDialogForEdit(id){
+      const it = state.items.find(x => x.id === id);
+      if(!it) return;
+      state.editingId = id;
+      dlgTitle.textContent = '编辑 Todo';
+      deleteBtn.style.display = 'inline-flex';
+      f_title.value = it.title;
+      f_desc.value = it.desc || '';
+      f_wl.value = it.wl;
+      f_quad.value = it.quad;
+      f_due.value = it.due || '';
+      dlg.showModal();
+      setTimeout(() => f_title.focus(), 0);
+    }
+
+    function nextOrderForQuad(quadKey){
+      const max = Math.max(0, ...state.items.filter(x => x.quad === quadKey).map(x => x.order));
+      return max + 1;
+    }
+
+    function upsertFromDialog(){
+      const title = f_title.value.trim();
+      if(!title){
+        alert('标题不能为空');
+        f_title.focus();
+        return;
+      }
+      const desc = f_desc.value;
+      const wl = f_wl.value;
+      const quad = f_quad.value;
+      const due = f_due.value;
+
+      if(state.editingId){
+        const idx = state.items.findIndex(x => x.id === state.editingId);
+        if(idx >= 0){
+          const old = state.items[idx];
+          const changedQuad = old.quad !== quad;
+          state.items[idx] = {
+            ...old,
+            title, desc, wl, quad, due,
+            order: changedQuad ? nextOrderForQuad(quad) : old.order,
+          };
+        }
+      } else {
+        state.items.push({
+          id: crypto.randomUUID(),
+          title, desc, wl, quad, due,
+          done: false,
+          order: nextOrderForQuad(quad),
+        });
+      }
+
+      saveItems();
+      dlg.close();
+    }
+
+    function deleteEditing(){
+      if(!state.editingId) return;
+      if(!confirm('确定删除这条 Todo 吗？')) return;
+      state.items = state.items.filter(x => x.id !== state.editingId);
+      saveItems();
+      dlg.close();
+    }
+
+    saveBtn.addEventListener('click', upsertFromDialog);
+    deleteBtn.addEventListener('click', deleteEditing);
+
+    // -------------------- Drag & Drop --------------------
+
+    function onDragStart(e, id){
+      state.dragId = id;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', id);
+      e.currentTarget.classList.add('dragging');
+    }
+
+    function onDragEnd(e){
+      e.currentTarget.classList.remove('dragging');
+      state.dragId = null;
+    }
+
+    function onDropToQuad(e, quadKey){
+      e.preventDefault();
+      const id = e.dataTransfer.getData('text/plain');
+      if(!id) return;
+      const it = state.items.find(x => x.id === id);
+      if(!it) return;
+      if(it.quad !== quadKey){
+        it.quad = quadKey;
+        it.order = nextOrderForQuad(quadKey);
+        saveItems();
+      }
+    }
+
+    function onDragOver(e){
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+    }
+
+    function reorderWithinQuad(quadKey, dragId, overId){
+      if(dragId === overId) return;
+      const quadItems = sortWithinQuad(state.items.filter(x => x.quad === quadKey));
+      const dragIdx = quadItems.findIndex(x => x.id === dragId);
+      const overIdx = quadItems.findIndex(x => x.id === overId);
+      if(dragIdx < 0 || overIdx < 0) return;
+
+      const moved = quadItems.splice(dragIdx, 1)[0];
+      quadItems.splice(overIdx, 0, moved);
+
+      // write back orders
+      quadItems.forEach((it, i) => {
+        const real = state.items.find(x => x.id === it.id);
+        if(real) real.order = i + 1;
+      });
+      saveItems();
+    }
+
+    // -------------------- Render --------------------
+
+    function render(){
+      const visible = state.items.filter(matchesFilters);
+      statsEl.textContent = `${visible.length} 项`;
+
+      quadEl.innerHTML = '';
+
+      for(const q of QUADS){
+        const box = document.createElement('section');
+        box.className = `q ${q.cls}`;
+        box.addEventListener('dragover', onDragOver);
+        box.addEventListener('drop', (e) => onDropToQuad(e, q.key));
+
+        const head = document.createElement('div');
+        head.className = 'qhead';
+        head.innerHTML = `
+          <div class="left">
+            <span class="dot"></span>
+            <div>
+              <div class="qtitle">${q.title}</div>
+              <div class="qsub">${q.sub}</div>
+            </div>
+          </div>
+          <span class="pill" id="count_${q.key}">0</span>
+        `;
+
+        const list = document.createElement('div');
+        list.className = 'list';
+        list.dataset.quad = q.key;
+
+        const items = sortWithinQuad(visible.filter(x => x.quad === q.key));
+        head.querySelector(`#count_${q.key}`).textContent = `${items.length}`;
+
+        if(items.length === 0){
+          const empty = document.createElement('div');
+          empty.className = 'note muted';
+          empty.textContent = '拖拽到这里，或点击“新增”创建。';
+          empty.style.padding = '6px 2px 8px 2px';
+          list.appendChild(empty);
+        }
+
+        for(const it of items){
+          const card = document.createElement('div');
+          card.className = 'item' + (it.done ? ' done' : '');
+          card.draggable = true;
+          card.addEventListener('dragstart', (e) => onDragStart(e, it.id));
+          card.addEventListener('dragend', onDragEnd);
+          card.addEventListener('dragover', (e) => {
+            // allow reordering only within same quad
+            e.preventDefault();
+          });
+          card.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const dragId = e.dataTransfer.getData('text/plain');
+            const dragItem = state.items.find(x => x.id === dragId);
+            if(!dragItem) return;
+            if(dragItem.quad === it.quad){
+              reorderWithinQuad(it.quad, dragId, it.id);
+            } else {
+              // dropping from other quad onto a card in this quad -> move to this quad
+              dragItem.quad = it.quad;
+              dragItem.order = nextOrderForQuad(it.quad);
+              saveItems();
+            }
+          });
+
+          const dueTxt = it.due ? `截止 ${it.due}` : '';
+          const wlTag = it.wl === 'work' ? '<span class="tag work">工作</span>' : '<span class="tag life">生活</span>';
+
+          card.innerHTML = `
+            <input type="checkbox" ${it.done ? 'checked' : ''} aria-label="完成" />
+            <div class="meta">
+              <div class="title">
+                <strong>${escapeHtml(it.title)}</strong>
+                ${wlTag}
+                ${dueTxt ? `<span class="tag">${dueTxt}</span>` : ''}
+              </div>
+              ${it.desc ? `<div class="desc">${escapeHtml(it.desc)}</div>` : ''}
+              <div class="row">
+                <button class="ghost" data-act="edit">编辑</button>
+                <button class="ghost" data-act="move">移动象限</button>
+                <span class="spacer"></span>
+                <button class="danger" data-act="del">删除</button>
+              </div>
+            </div>
+          `;
+
+          // Checkbox
+          card.querySelector('input[type=checkbox]').addEventListener('change', (e) => {
+            it.done = e.target.checked;
+            saveItems();
+          });
+
+          // Actions
+          card.querySelector('[data-act=edit]').addEventListener('click', () => openDialogForEdit(it.id));
+          card.querySelector('[data-act=del]').addEventListener('click', () => {
+            if(confirm('确定删除这条 Todo 吗？')){
+              state.items = state.items.filter(x => x.id !== it.id);
+              saveItems();
+            }
+          });
+          card.querySelector('[data-act=move]').addEventListener('click', () => quickMove(it.id));
+
+          list.appendChild(card);
+        }
+
+        box.appendChild(head);
+        box.appendChild(list);
+        quadEl.appendChild(box);
+      }
+    }
+
+    function quickMove(id){
+      const it = state.items.find(x => x.id === id);
+      if(!it) return;
+      const next = it.quad === 'q1' ? 'q2' : it.quad === 'q2' ? 'q3' : it.quad === 'q3' ? 'q4' : 'q1';
+      it.quad = next;
+      it.order = nextOrderForQuad(next);
+      saveItems();
+    }
+
+    function escapeHtml(str){
+      return String(str)
+        .replaceAll('&','&amp;')
+        .replaceAll('<','&lt;')
+        .replaceAll('>','&gt;')
+        .replaceAll('"','&quot;')
+        .replaceAll("'",'&#39;');
+    }
+
+    // initial render
+    render();
+  </script>
 </body>
 </html>
